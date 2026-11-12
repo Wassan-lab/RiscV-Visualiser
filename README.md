@@ -1,1 +1,1 @@
-# Comp-Arch-Project
+# RiscVVisualiser
