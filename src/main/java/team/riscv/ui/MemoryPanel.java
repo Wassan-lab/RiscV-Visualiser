@@ -6,6 +6,9 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.util.Map;
 import java.util.Set;
 import javax.swing.*;
@@ -27,7 +30,7 @@ public final class MemoryPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(20, 22, 18, 22));
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
-        top.add(UiTheme.label("Data memory", 26, true, UiTheme.INK), BorderLayout.NORTH);
+        top.add(UiTheme.label("Data Memory", 26, true, UiTheme.INK), BorderLayout.NORTH);
         JPanel jump = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         jump.setOpaque(false);
         JButton go = UiTheme.button("Go to address", true);
@@ -44,14 +47,29 @@ public final class MemoryPanel extends JPanel {
         table.setFont(UiTheme.mono(13));
         table.setForeground(UiTheme.INK);
         table.setBackground(UiTheme.WHITE);
-        table.setGridColor(UiTheme.LINE);
-        table.setSelectionBackground(UiTheme.TINT);
+        table.setGridColor(new Color(235, 241, 249));
+        table.setShowVerticalLines(false);
+        table.setShowHorizontalLines(false);
+        table.setIntercellSpacing(new Dimension(0, 0));
+        table.setSelectionBackground(new Color(198, 220, 252));
         table.setSelectionForeground(UiTheme.INK);
         table.getTableHeader().setBackground(UiTheme.TINT);
         table.getTableHeader().setForeground(UiTheme.INK);
         table.getTableHeader().setFont(UiTheme.font(12, true));
-        table.getTableHeader().setPreferredSize(new Dimension(100, 34));
-        table.setRowHeight(26);
+        table.getTableHeader().setPreferredSize(new Dimension(100, 42));
+        table.getTableHeader().setReorderingAllowed(false);
+        table.getTableHeader().setDefaultRenderer((t, value, selected, focused, row, column) -> {
+            JLabel label = new JLabel(String.valueOf(value), SwingConstants.CENTER);
+            label.setOpaque(true);
+            label.setBackground(UiTheme.TINT);
+            label.setForeground(UiTheme.INK);
+            label.setFont(UiTheme.font(12, true));
+            label.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 0, 1, 1, column == 4 || column == 5 ? UiTheme.LINE : new Color(232, 239, 248)),
+                    BorderFactory.createEmptyBorder(0, 8, 0, 8)));
+            return label;
+        });
+        table.setRowHeight(32);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
         int[] widths = {90, 65, 65, 65, 65, 120, 115};
@@ -65,10 +83,29 @@ public final class MemoryPanel extends JPanel {
             public Component getTableCellRendererComponent(JTable t, Object value, boolean selected,
                     boolean focus, int row, int column) {
                 Component cell = super.getTableCellRendererComponent(t, value, selected, focus, row, column);
-                if (!selected) {
-                    cell.setBackground(writes.contains(row * 4) ? UiTheme.WRITE
+                if (selected) {
+                    cell.setBackground(new Color(198, 220, 252));
+                    cell.setForeground(UiTheme.INK);
+                } else {
+                    cell.setBackground(writes.contains(row * 4) ? new Color(173, 207, 250)
                             : (row % 2 == 0 ? Color.WHITE : UiTheme.PAGE));
                     cell.setForeground(UiTheme.INK);
+                }
+                if (cell instanceof JLabel label) {
+                    // Match the header: byte columns centered; address and words left aligned.
+                    label.setHorizontalAlignment(column >= 1 && column <= 4
+                            ? SwingConstants.CENTER : SwingConstants.LEFT);
+                    Color separator = new Color(235, 241, 249);
+                    int right = column == 0 || column == 4 || column == 5 ? 1 : 0;
+                    int leftAccent = column == 0 && selected ? 3 : 0;
+                    label.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createMatteBorder(0, leftAccent, 1, right,
+                                    leftAccent > 0 ? UiTheme.BLUE : separator),
+                            BorderFactory.createEmptyBorder(0, column >= 1 && column <= 4 ? 2 : 10, 0, 6)));
+                    // Draw the right-hand group divider separately when a selected row has an accent.
+                    if (leftAccent > 0) label.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createMatteBorder(0, 3, 1, right, UiTheme.BLUE),
+                            BorderFactory.createEmptyBorder(0, 7, 0, 6)));
                 }
                 return cell;
             }
@@ -76,8 +113,24 @@ public final class MemoryPanel extends JPanel {
         JScrollPane scroll = new JScrollPane(table);
         scroll.setColumnHeaderView(table.getTableHeader());
         UiTheme.styleScroll(scroll);
-        scroll.setBorder(BorderFactory.createLineBorder(UiTheme.LINE));
-        add(scroll, BorderLayout.CENTER);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        // A single rounded surface surrounds the table; cells stay aligned and readable.
+        JPanel tableCard = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics graphics) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g.setColor(UiTheme.WHITE);
+                g.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g.setColor(UiTheme.LINE);
+                g.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g.dispose();
+                super.paintComponent(graphics);
+            }
+        };
+        tableCard.setOpaque(false);
+        tableCard.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        tableCard.add(scroll, BorderLayout.CENTER);
+        add(tableCard, BorderLayout.CENTER);
         JPanel bottom = new JPanel(new BorderLayout());
         bottom.setOpaque(false);
         bottom.add(UiTheme.label("4096 bytes  |  Little-endian  |  Blue highlight = SW this cycle",

@@ -35,6 +35,10 @@ public final class Member3Panel extends JPanel {
         memoryPanel.refresh(memory.snapshot(), Map.of());
     }
 
+    public MemoryPanel memoryView() { return memoryPanel; }
+
+    public PerformancePanel performanceView() { return performancePanel; }
+
     /** Refresh once after each cycle, on Swing's event thread. */
     public void update(ProcessorSnapshot snapshot) {
         requireEventThread();
