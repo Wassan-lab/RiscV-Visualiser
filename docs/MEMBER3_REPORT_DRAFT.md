@@ -1,59 +1,162 @@
-# Member 3 report section — draft for review
+# Member 3 — Memory and Performance Implementation
 
-Status: memory and performance components are implemented and component-tested. Final processor integration, whole-program timing validation and native desktop testing remain pending. Replace this status after completing those checks. This is a section draft for the combined technical report, not a final whole-project report.
+**Course:** CCEN 350 — Computer Architecture  
+**Project:** Interactive RISC-V Architectural Visualiser  
+**Contribution:** Data Memory Inspector and Module D — Performance and Amdahl's Law Engine
 
-## Scope
+## 1. Overview
 
-This contribution covers the byte-addressable data memory, memory inspector, performance counters, interactive Amdahl calculator, comparison of completed simulator runs, dashboard layout and executable Java packaging support. The processor produces the cycle snapshots; this contribution consumes them.
+The Member 3 contribution implements byte-addressable data memory, an interactive memory inspector, processor performance measurements, an Amdahl's Law calculator, and baseline/improved-run comparisons.
 
-## Data memory
+These components are integrated with Member 1's five-stage processor through shared memory and processor-state snapshots. The application uses a Java Swing interface with separate Processor, Memory, Performance, and Custom Instructions tabs.
 
-DataMemory implements the existing MemoryAccess interface. It contains 4096 bytes with valid word starting addresses 0, 4, ..., 4092. The memory capacity is a project design choice. Each word contains four bytes in little-endian order. Reads reconstruct the 32-bit bit pattern, including negative values. Stores validate their address before changing any byte, preventing partial invalid writes.
+## 2. Data Memory Implementation
 
-Reset clears all bytes. A memory snapshot returns a copy so display code cannot alter the simulator's memory. The model and GUI are separate classes, allowing the model to be tested without a window.
+The `DataMemory` class implements the shared `MemoryAccess` interface and provides 4,096 bytes (4 KiB) of memory.
 
-The table shows each word's starting address, its four bytes in hexadecimal, its complete hexadecimal word and its signed decimal value. Users can jump to any byte address. Successful stores are highlighted using the processor's per-cycle memoryWrites map. This also shows a store that writes the same value as before; it does not rely on comparing old and new bytes.
+Each 32-bit word occupies four consecutive bytes. Word reads and writes require addresses divisible by four, with valid starting addresses from 0 to 4092.
 
-## Performance model
+Memory uses little-endian byte ordering. For example, the value `0x12345678` is stored as:
 
-Cycles and completed instructions are taken from ProcessorSnapshot. CPI = cycles / completed instructions. IPC = completed instructions / cycles. Undefined ratios display a dash. Simulated time = cycles / clock frequency. The default 100 MHz is an assumed model parameter, not a measured hardware frequency. Animation delays and host execution time do not enter these metrics.
+`78 56 34 12`
 
-Counts include the pipeline's initial filling, stalls and draining. Stores and branches count as completed instructions when they finish WB. These counting rules must be implemented and verified in the processor; the performance code cannot determine whether a supplied count is architecturally correct.
+The implementation validates memory addresses before modifying memory. Invalid accesses are rejected without partially changing the stored bytes.
 
-## Amdahl and measured comparisons
+The memory snapshot method returns a separate copy of the memory array, preventing the interface from modifying processor memory unintentionally.
 
-The calculator uses S = 1 / ((1-f) + f/s). The slider represents the percentage of original execution time affected, and the second control sets the local speedup. This is an interactive theoretical prediction. It is not automatically derived from instruction percentages, which would be inaccurate for a stalled pipeline.
+The Data Memory Inspector displays addresses, individual bytes, hexadecimal words, and signed decimal values. It also supports address navigation and highlights successful `SW` operations using the processor's memory-write information.
 
-The measured comparison uses baseline simulated execution time divided by improved simulated execution time. Results are saved after successful program completion. It checks matching workload/input identifiers and matching selected outputs before displaying speedup and comparison bars. Slower improved versions remain visible as speedups below 1. Inputs and output selections must be supplied honestly by integration code; checking selected outputs is not a proof of all possible program behavior.
+## 3. Performance Metrics
 
-The proposed weighted-sum example compares three ADD operations with one XWSUM operation while retaining identical setup inputs. Both produce x3 = 50 for inputs 20 and 10. Temporary registers need not match. Final measured cycle results must be added after the real processor is connected.
+The Performance panel receives cycle and completed-instruction counts through `ProcessorSnapshot`.
 
-## Interface and packaging
+It calculates:
 
-Member3Panel combines the memory inspector and performance panel. MainWindow accepts the editor, processor and custom-instruction panels supplied by the other members. Display refreshes happen on Swing's event dispatch thread. Build.java compiles, tests and packages the project using Java's own compiler and JAR APIs, without additional build dependencies.
+**Cycles per instruction (CPI)**
 
-The supplied runnable JAR launches a clearly labelled preview. It is not the final simulator. Before submission, its entry point must be changed to the team's integrated application, rebuilt and tested on a desktop computer.
+\[
+CPI=\frac{\text{Cycle Count}}{\text{Completed Instructions}}
+\]
 
-## Validation evidence
+**Instructions per cycle (IPC)**
 
-Automated checks cover zero initialization; little-endian byte order; first and last aligned addresses; signed values; all 1024 word positions; invalid-address rejection without partial writes; copied snapshots; reset; CPI/IPC/time; Amdahl boundaries and invalid inputs; valid, mismatched and failed comparison cases; GUI table values, highlights, address navigation, calculator updates and comparison buttons. See Member3Tests.java and run `java Build.java test` for the current count.
+\[
+IPC=\frac{\text{Completed Instructions}}{\text{Cycle Count}}
+\]
 
-Panels were rendered off-screen and visually inspected. This verifies panel layout and interactions exercised by the tests. Native window behavior on Windows/macOS, final processor integration and complete program execution are not established by these component tests.
+**Simulated execution time**
 
-Before submission, add screenshots from the real integrated app, actual baseline/improved measurements, and test results from the target laptop. Each member should review and be able to explain the code they present.
+\[
+T=\frac{\text{Cycle Count}}{\text{Clock Frequency}}
+\]
 
-## Trade-offs
+The current implementation uses an assumed 100 MHz simulated clock.
 
-- A fixed 4 KiB memory keeps the memory display manageable and satisfies the aligned-access requirement.
-- A byte array makes byte addresses and little-endian word organization explicit.
-- Snapshot copies use a little extra memory to prevent accidental state changes through displays.
-- The assumed fixed clock permits reproducible comparisons; it does not estimate physical circuit timing or the actual maximum frequency of a custom datapath.
-- Saving two completed runs is simpler than running two live simulator instances.
-- A JAR keeps packaging portable but requires an installed Java runtime.
+Cycle counts include pipeline filling, stalls, and draining. Completed instructions are counted when they successfully retire at write-back.
 
-## Sources
+Simulated execution time is different from the actual time taken by the Java application to run.
+
+## 4. Amdahl's Law Engine
+
+The interactive Amdahl's Law calculator estimates the theoretical overall speedup when part of a workload is improved.
+
+\[
+S=\frac{1}{(1-f)+\frac{f}{s}}
+\]
+
+Here, \(f\) is the fraction of original execution time affected, and \(s\) is the improvement factor for that portion.
+
+For example, improving 50% of execution time by a factor of two gives:
+
+\[
+S=\frac{1}{0.5+0.25}=1.333
+\]
+
+The calculator updates its theoretical speedup when the user changes the slider or improvement factor.
+
+## 5. Measured Performance Comparison
+
+The Performance panel also supports comparing two completed simulation runs.
+
+Measured speedup is calculated as:
+
+\[
+S_{\text{measured}}=\frac{T_{\text{baseline}}}{T_{\text{improved}}}
+\]
+
+The comparison engine checks matching workload identifiers, input identifiers, and selected intended outputs before displaying a valid comparison.
+
+The interface presents the measured result using labeled execution-time bars.
+
+The completed-run workflow was tested using two identical executions of the `Single ADDI` program. Both completed in five cycles, producing a measured speedup of `1.000×`.
+
+This verifies the comparison mechanism but does not represent an actual optimization.
+
+The final demonstration will compare a baseline RV32I implementation against Member 2's custom XWSUM instruction after integration.
+
+## 6. Interface and Integration
+
+The application uses Java Swing and the shared `UiTheme` styling to maintain a consistent blue-and-white interface.
+
+The `CombinedApp` launcher creates a shared `DataMemory` object for the processor and memory display.
+
+Processor snapshots are used to update memory contents and performance metrics after execution steps.
+
+The tabbed layout separates the processor, memory inspector, and performance analysis into dedicated views while preserving the shared simulation state.
+
+The Custom Instructions tab is reserved for Member 2's final integration.
+
+## 7. Testing and Verification
+
+Automated testing produced the following results:
+
+| Test Suite | Result |
+|---|---|
+| Member 3 memory, performance, Amdahl, comparison, and Swing checks | 1,105 passed |
+| Processor checks | 14 groups passed |
+| Processor UI checks | 7 groups passed |
+
+The 1,105 checks include repeated tests across memory addresses and do not represent 1,105 different architectural scenarios.
+
+Manual integration testing also verified:
+
+- Correct `SW` and `LW` operations.
+- Little-endian memory representation.
+- Store highlighting and memory reset.
+- Register updates after instruction completion.
+- Live CPI, IPC, cycle count, and execution time.
+- Theoretical Amdahl speedup.
+- Saving and comparing two completed runs.
+
+The four-instruction memory example completed in 10 cycles, with four completed instructions, CPI of 2.500, IPC of 0.400, and simulated execution time of 0.100 µs.
+
+Additional test evidence is recorded in `MEMBER3_TEST_RESULTS.md`.
+
+## 8. Design Decisions and Trade-offs
+
+The implementation uses a fixed 4 KiB memory to keep the simulator manageable and the memory inspector readable.
+
+A byte array makes memory addressing and little-endian word operations explicit.
+
+Copying memory snapshots requires additional storage but prevents accidental changes through the graphical interface.
+
+A fixed simulated clock allows reproducible performance calculations but does not represent physical processor timing.
+
+Saving completed runs provides a straightforward comparison mechanism without maintaining two simultaneous processor instances.
+
+The Java JAR supports portable execution on compatible Java installations but requires a Java runtime.
+
+## 9. Current Status and Remaining Integration
+
+The Member 3 memory and performance components have been implemented, integrated with Member 1's processor, and tested.
+
+The application builds as `RiscV-Visualiser.jar` and launches the combined tabbed interface.
+
+Remaining team tasks include integrating Member 2's assembly parser and custom ISA extension, verifying the XWSUM datapath and measured performance comparison, and running final tests on the completed application.
+
+## 10. References
 
 - RISC-V RV32I specification: https://docs.riscv.org/reference/isa/v20260120/unpriv/rv32.html
-- UC Berkeley CS61C Amdahl notes: https://notes.cs61c.org/content/parallel-performance/
-- Java 21 Swing threading policy: https://docs.oracle.com/en/java/javase/21/docs/api/java.desktop/javax/swing/package-summary.html
-- Course project requirements supplied by the instructor: baseline memory inspector, module D, UI/UX, documentation and AI log.
+- UC Berkeley CS61C performance notes: https://notes.cs61c.org/content/parallel-performance/
+- Java 21 Swing documentation: https://docs.oracle.com/en/java/javase/21/docs/api/java.desktop/javax/swing/package-summary.html
+- CCEN 350 Computer Architecture term project guidelines.
