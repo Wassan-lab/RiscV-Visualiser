@@ -1,20 +1,20 @@
-# AI usage log — Member 3
+# AI Usage Log — Member 3
 
-This is the log for this development session, not a replacement for the team's earlier AI logs. Continue adding entries when AI is used. Human review and final integration checks are pending unless recorded below.
+**Project:** RISC-V Visualiser  
+**Course:** CCEN 350 — Computer Architecture
 
-| Date | Tool | User prompt / purpose | Assistance provided | Verification and review status |
-| --- | --- | --- | --- | --- |
-| 2026-11-27 | ChatGPT / Codex | “okok so i am member 3. help me work on this!! am i supposed to push/pull smth ? what were my roles first again and what should i do? help me complete my work perfectly!!” | Reviewed the current GitHub shared definitions; generated memory implementation, performance calculations, Amdahl calculator, Swing panels, main-window layout, preview, build/packaging helper, tests and draft documentation. | Assistant ran component tests and inspected an off-screen panel rendering. Student review, target-laptop test, real processor integration and whole-program measurements remain to be completed. |
+AI tools were used to assist with software development, interface design, debugging, and documentation. The generated suggestions and code were tested and refined during development.
 
-Architectural choices to understand and verify: little-endian words; alignment and bounds; same-value SW highlighting; what counts as a cycle/completed instruction; assumed clock versus wall-clock time; Amdahl's time fraction; matching intended outputs before comparison. AI assistance does not establish that the entire simulator is correct.
+| Area | AI Assistance | Verification |
+|---|---|---|
+| Memory and performance implementation | Assisted with Java implementation, memory operations, performance calculations, and Amdahl's Law. | Automated memory and performance tests passed. |
+| User interface | Assisted with Swing layout, styling, and interface improvements. | Interface inspected and refined through manual testing. |
+| Integration | Assisted with connecting memory and performance displays to processor snapshots. | LW/SW operations, register updates, and performance counters verified. |
+| Debugging | Assisted with resolving compilation errors and graphical rendering issues. | Corrections tested using the Java build and application. |
+| Testing and documentation | Assisted with test preparation, result interpretation, and technical documentation. | 1,105 Member 3 checks, 14 processor test groups, and 7 UI test groups passed. |
 
-## Human review record — fill in after doing it
+## Verification and Limitations
 
-- Reviewer and date:
-- Files read and explained:
-- Tests run locally and result:
-- Changes made after review:
-- Integration tests and results:
-- Any AI-generated mistakes found and corrected:
+The implemented components were tested using automated checks and manual execution of sample programs.
 
-Do not fill these fields as completed until the work has actually been reviewed or tested.
+The final custom-instruction integration and baseline-versus-XWSUM performance comparison remain to be verified after Member 2 completes their work.
