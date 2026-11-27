@@ -55,7 +55,7 @@ public class Build {
     private static void compile(Path source, Path output, String classpath) throws IOException {
         var compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) throw new IllegalStateException("Install a Java 21 JDK to build the source.");
-        List<String> options = new ArrayList<>(List.of("-source", "21", "-target", "21", "-encoding", "UTF-8",
+        List<String> options = new ArrayList<>(List.of("--release", "21", "-encoding", "UTF-8",
                 "-Xlint:all,-serial", "-d", output.toString()));
         if (classpath != null) options.addAll(List.of("-cp", classpath));
         try (var files = Files.walk(source)) {
