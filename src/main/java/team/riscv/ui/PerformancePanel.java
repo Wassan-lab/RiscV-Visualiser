@@ -24,8 +24,8 @@ public final class PerformancePanel extends JPanel {
     private final JSlider affected = new JSlider(0, 100, 50);
     private final JSpinner localSpeedup = new JSpinner(new SpinnerNumberModel(2.0, 1.0, 100.0, 0.5));
     private final JLabel fractionLabel = new JLabel();
-    private final JButton baselineButton = new JButton("Save baseline");
-    private final JButton improvedButton = new JButton("Save improved");
+    private final JButton baselineButton = UiTheme.button("Save baseline", true);
+    private final JButton improvedButton = UiTheme.button("Save improved", false);
     private final ComparisonBars bars = new ComparisonBars();
     private final double clockHz;
     private ProcessorSnapshot currentState;
@@ -37,11 +37,12 @@ public final class PerformancePanel extends JPanel {
         new PerformanceMetrics(0, 0, clockHz); // Validate even before the first cycle.
         this.clockHz = clockHz;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        UiStyle.pad(this);
-        add(UiStyle.title("Performance"));
-        add(new JLabel(String.format(Locale.ROOT, "Assumed clock: %.1f MHz | simulated time", clockHz / 1e6)));
+        setBackground(UiTheme.PAGE);
+        setBorder(BorderFactory.createEmptyBorder(20, 22, 20, 22));
+        add(UiTheme.label("Performance", 26, true, UiTheme.INK));
+        add(UiTheme.label(String.format(Locale.ROOT, "Assumed clock: %.1f MHz  |  Simulated time", clockHz / 1e6), 12, false, UiTheme.MUTED));
         add(Box.createVerticalStrut(10));
-        JPanel stats = new JPanel(new GridLayout(3, 4, 8, 8));
+        JPanel stats = new JPanel(new GridLayout(2, 3, 10, 10));
         stats.setOpaque(false);
         addStat(stats, "Cycles", cycles);
         addStat(stats, "Completed", completed);
@@ -51,34 +52,45 @@ public final class PerformancePanel extends JPanel {
         addStat(stats, "State", runStatus);
         add(stats);
         add(Box.createVerticalStrut(14));
-        add(new JSeparator());
+        add(sectionDivider());
         add(Box.createVerticalStrut(10));
-        add(UiStyle.title("Amdahl's Law · theoretical"));
+        add(UiTheme.label("Amdahl's Law  /  Theoretical", 19, true, UiTheme.INK));
         add(fractionLabel);
         affected.setOpaque(false);
+        affected.setForeground(UiTheme.BLUE);
+        affected.setFont(UiTheme.font(11, false));
+        fractionLabel.setFont(UiTheme.font(13, true));
+        fractionLabel.setForeground(UiTheme.INK);
         affected.setMajorTickSpacing(25);
         affected.setPaintTicks(true);
         affected.setPaintLabels(true);
         add(affected);
         JPanel factor = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 3));
         factor.setOpaque(false);
-        factor.add(new JLabel("Speedup of that part: "));
+        factor.add(UiTheme.label("Speedup of that part: ", 12, false, UiTheme.MUTED));
+        localSpeedup.setFont(UiTheme.font(12, false));
         factor.add(localSpeedup);
         add(factor);
+        theoretical.setFont(UiTheme.font(15, true));
+        theoretical.setForeground(UiTheme.BLUE);
         add(theoretical);
-        add(new JLabel("S = 1 / ((1 − f) + f / s)"));
-        add(new JLabel("f is the fraction of original execution time affected."));
+        add(UiTheme.label("S = 1 / ((1 − f) + f / s)", 12, false, UiTheme.INK));
+        add(UiTheme.label("f is the fraction of original execution time affected.", 12, false, UiTheme.MUTED));
         add(Box.createVerticalStrut(14));
-        add(new JSeparator());
+        add(sectionDivider());
         add(Box.createVerticalStrut(10));
-        add(UiStyle.title("Simulator comparison · measured"));
+        add(UiTheme.label("Simulator comparison  /  Measured", 19, true, UiTheme.INK));
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 3));
         buttons.setOpaque(false);
-        JButton clear = new JButton("Clear comparison");
+        JButton clear = UiTheme.button("Clear comparison", false);
         buttons.add(baselineButton);
         buttons.add(improvedButton);
         buttons.add(clear);
         add(buttons);
+        measured.setFont(UiTheme.font(15, true));
+        measured.setForeground(UiTheme.BLUE);
+        comparisonStatus.setFont(UiTheme.font(12, false));
+        comparisonStatus.setForeground(UiTheme.MUTED);
         add(measured);
         add(comparisonStatus);
         add(bars);
@@ -97,9 +109,19 @@ public final class PerformancePanel extends JPanel {
     }
 
     private static void addStat(JPanel panel, String name, JLabel value) {
-        panel.add(new JLabel(name));
-        value.setFont(UiStyle.BODY.deriveFont(Font.BOLD));
-        panel.add(value);
+        JPanel card = UiTheme.card();
+        card.setLayout(new BorderLayout(0, 6));
+        card.add(UiTheme.label(name.toUpperCase(Locale.ROOT), 11, true, UiTheme.MUTED), BorderLayout.NORTH);
+        value.setFont(UiTheme.font(20, true));
+        value.setForeground(UiTheme.INK);
+        card.add(value, BorderLayout.CENTER);
+        panel.add(card);
+    }
+
+    private static JSeparator sectionDivider() {
+        JSeparator divider = new JSeparator();
+        divider.setForeground(UiTheme.LINE);
+        return divider;
     }
 
     public void acceptSnapshot(ProcessorSnapshot state) {
@@ -182,16 +204,16 @@ public final class PerformancePanel extends JPanel {
             super.paintComponent(graphics);
             Graphics2D g = (Graphics2D) graphics.create();
             try {
-                g.setFont(UiStyle.BODY);
-                g.setColor(UiStyle.NAVY);
+                g.setFont(UiTheme.font(12, false));
+                g.setColor(UiTheme.INK);
                 if (baseline == null || improved == null) {
                     g.drawString("Execution-time bars appear after a valid comparison.", 0, 30);
                     return;
                 }
                 double max = Math.max(baseline.metrics().seconds(), improved.metrics().seconds());
                 int width = Math.max(1, getWidth() - 155);
-                drawBar(g, baseline, "Baseline", UiStyle.NAVY, 10, max, width);
-                drawBar(g, improved, "Improved", UiStyle.TEAL, 65, max, width);
+                drawBar(g, baseline, "Baseline", UiTheme.INK, 10, max, width);
+                drawBar(g, improved, "Improved", UiTheme.BLUE, 65, max, width);
             } finally {
                 g.dispose();
             }
@@ -199,11 +221,11 @@ public final class PerformancePanel extends JPanel {
 
         private void drawBar(Graphics2D g, RunResult run, String name, Color color,
                              int y, double maximum, int width) {
-            g.setColor(UiStyle.NAVY);
+            g.setColor(UiTheme.INK);
             g.drawString(name, 0, y + 17);
             g.setColor(color);
             g.fillRoundRect(80, y, Math.max(1, (int) (width * (run.metrics().seconds() / maximum))), 23, 8, 8);
-            g.setColor(UiStyle.NAVY);
+            g.setColor(UiTheme.INK);
             g.drawString(String.format(Locale.ROOT, "%d cycles · %.3f µs", run.metrics().cycles(),
                     run.metrics().seconds() * 1e6), 80, y + 40);
         }

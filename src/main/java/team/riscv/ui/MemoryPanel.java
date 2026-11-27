@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Dimension;
 import java.util.Map;
 import java.util.Set;
 import javax.swing.*;
@@ -21,19 +22,35 @@ public final class MemoryPanel extends JPanel {
     private Set<Integer> writes = Set.of();
 
     public MemoryPanel() {
-        super(new BorderLayout(8, 8));
-        UiStyle.pad(this);
+        super(new BorderLayout(0, 14));
+        setBackground(UiTheme.PAGE);
+        setBorder(BorderFactory.createEmptyBorder(20, 22, 18, 22));
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
-        top.add(UiStyle.title("Data memory"), BorderLayout.NORTH);
+        top.add(UiTheme.label("Data memory", 26, true, UiTheme.INK), BorderLayout.NORTH);
         JPanel jump = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         jump.setOpaque(false);
-        JButton go = new JButton("Go to address");
+        JButton go = UiTheme.button("Go to address", true);
+        addressInput.setFont(UiTheme.mono(13));
+        addressInput.setForeground(UiTheme.INK);
+        addressInput.setBackground(UiTheme.WHITE);
+        addressInput.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(UiTheme.LINE),
+                BorderFactory.createEmptyBorder(7, 10, 7, 10)));
         jump.add(addressInput);
         jump.add(go);
         top.add(jump, BorderLayout.SOUTH);
         add(top, BorderLayout.NORTH);
-        table.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        table.setFont(UiTheme.mono(13));
+        table.setForeground(UiTheme.INK);
+        table.setBackground(UiTheme.WHITE);
+        table.setGridColor(UiTheme.LINE);
+        table.setSelectionBackground(UiTheme.TINT);
+        table.setSelectionForeground(UiTheme.INK);
+        table.getTableHeader().setBackground(UiTheme.TINT);
+        table.getTableHeader().setForeground(UiTheme.INK);
+        table.getTableHeader().setFont(UiTheme.font(12, true));
+        table.getTableHeader().setPreferredSize(new Dimension(100, 34));
         table.setRowHeight(26);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
@@ -49,19 +66,25 @@ public final class MemoryPanel extends JPanel {
                     boolean focus, int row, int column) {
                 Component cell = super.getTableCellRendererComponent(t, value, selected, focus, row, column);
                 if (!selected) {
-                    cell.setBackground(writes.contains(row * 4) ? UiStyle.WRITE
-                            : (row % 2 == 0 ? Color.WHITE : UiStyle.LIGHT));
-                    cell.setForeground(UiStyle.NAVY);
+                    cell.setBackground(writes.contains(row * 4) ? UiTheme.WRITE
+                            : (row % 2 == 0 ? Color.WHITE : UiTheme.PAGE));
+                    cell.setForeground(UiTheme.INK);
                 }
                 return cell;
             }
         });
         JScrollPane scroll = new JScrollPane(table);
         scroll.setColumnHeaderView(table.getTableHeader());
+        UiTheme.styleScroll(scroll);
+        scroll.setBorder(BorderFactory.createLineBorder(UiTheme.LINE));
         add(scroll, BorderLayout.CENTER);
         JPanel bottom = new JPanel(new BorderLayout());
         bottom.setOpaque(false);
-        bottom.add(new JLabel("4096 bytes | Little-endian | Yellow = SW this cycle"), BorderLayout.NORTH);
+        bottom.add(UiTheme.label("4096 bytes  |  Little-endian  |  Blue highlight = SW this cycle",
+                12, false, UiTheme.MUTED), BorderLayout.NORTH);
+        status.setFont(UiTheme.font(12, false));
+        status.setForeground(UiTheme.BLUE);
+        bottom.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
         bottom.add(status, BorderLayout.SOUTH);
         add(bottom, BorderLayout.SOUTH);
         go.addActionListener(e -> jumpToInput());
