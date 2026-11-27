@@ -1,63 +1,92 @@
-# Connecting Member 3's work
+# Member 3 — Integration Guide
 
-These notes describe the supplied components. Processor and parser names below refer to the team's proposed API; those implementations are not included here.
+## 1. Overview
 
-## One memory object for the whole simulation
+The Data Memory Inspector and Performance and Amdahl's Law Engine have been integrated with Member 1's processor in the RISC-V Visualiser.
 
-Create a `team.riscv.memory.DataMemory` and give the SAME object to the processor and `team.riscv.ui.Member3Panel`.
+The application currently includes:
+- Five-stage processor pipeline and register display.
+- Data memory inspection with real-time store highlighting.
+- Live performance metrics (cycles, completed instructions, CPI, IPC, and execution time).
+- Interactive Amdahl's Law calculator.
+- Baseline and improved-run comparison with measured speedup.
+
+The remaining integration work involves Member 2's assembly editor, parser, and custom ISA extension.
+
+## 2. Existing Integration
+
+The application entry point is:
+
+`src/main/java/team/riscv/ui/CombinedApp.java`
+
+The processor and memory inspector share the same `DataMemory` instance:
 
 ```java
 DataMemory memory = new DataMemory();
-Member3Panel member3 = new Member3Panel(memory);
-// Once Member 1's Processor class exists:
 Processor processor = new Processor(memory);
+Member3Panel member3 = new Member3Panel(memory);
 ```
 
-Member 1 uses `memory.readWord(address)` in MEM for LW and `memory.writeWord(address, value)` in MEM for SW. On a successful SW, include its address and value in that cycle's `ProcessorSnapshot.memoryWrites`, even when the stored value is unchanged. Clear the map next cycle. The memory class cannot infer pipeline cycle boundaries.
+Processor snapshots update the memory and performance displays through the existing snapshot listener.
 
-Address errors throw IllegalArgumentException before memory changes. The processor converts a program's invalid access into an ERROR snapshot and stops advancing. LW to x0 must still perform its memory access even though its value is discarded.
+The memory model must remain shared between the processor and the GUI. Creating separate memory objects would cause inconsistent displayed values.
 
-Do not instantiate a second memory just for the GUI. Do not write into the array returned by snapshot and expect the memory to change: it is a separate copy.
+## 3. Memory Operations
 
-## Update on each cycle
+The processor performs memory operations during the MEM stage.
 
-In the Step button handler, and on each Run timer tick:
+- `LW` reads a 32-bit word from an aligned memory address.
+- `SW` writes a 32-bit word to an aligned memory address.
+- Memory uses little-endian byte ordering.
+- Successful stores are highlighted using the current cycle's memory-write information.
+- Invalid memory accesses must produce an appropriate processor error without partially modifying memory.
 
-```java
-ProcessorSnapshot state = processor.step();
-member3.update(state);
-```
+The existing Memory Load / Store example has been manually tested.
 
-Use the returned snapshot for the other displays too. Calling snapshot repeatedly should not advance the processor. After load/reset, also update the panel with the new starting snapshot. Baseline and improved saved comparison results deliberately survive a reset so two separate runs can be compared; the Clear comparison button removes them.
+## 4. Performance Metrics
 
-Create and update Swing components on the event dispatch thread. For this small simulator, a javax.swing.Timer can call one bounded processor step and then update all panels. Do not run an endless simulation loop in a button handler. Stop the timer on FINISHED or ERROR, and before loading/resetting. Do not queue a snapshot for later while allowing its separate memory object to advance ahead of it: refresh both from the same cycle.
+Performance values are updated using processor snapshots.
 
-The processor must provide counts with these meanings:
+The main calculations are:
 
-- cycleCount includes pipeline filling, stalls and draining.
-- completedInstructions counts successful instructions completing WB, including stores and branches. It excludes bubbles and failures.
-- The live table uses the register and memory write maps for the cycle just executed.
-- FINISHED means no instruction remains to execute, not merely that fetching reached the program end.
+**Cycles per instruction:**
 
-## Save real measured results
+\[
+CPI = \frac{\text{Cycles}}{\text{Completed Instructions}}
+\]
 
-After a successful complete run, first call `member3.update(finalState)`, then:
+**Instructions per cycle:**
 
-```java
-member3.setCompletedRun(
-    "weighted-sum",
-    "a=20;b=10;other initial registers and memory zero",
-    Map.of("x3", finalState.registers()[3])
-);
-```
+\[
+IPC = \frac{\text{Completed Instructions}}{\text{Cycles}}
+\]
 
-The display now enables Save baseline and Save improved. Run the baseline, save it, reset/load the improved program, then save that result. The component requires equal workload IDs, equal input IDs and equal selected output maps before displaying speedup.
+**Simulated execution time:**
 
-The input ID is supplied by the integration code; the component does not independently inspect a program's entire starting state. Use an identifier that faithfully captures every relevant initial input. Include every intended output in the output map, including relevant memory results where needed; exclude scratch registers that need not match. Equal metadata is not a proof of program equivalence.
+\[
+T = \frac{\text{Cycles}}{\text{Clock Frequency}}
+\]
 
-Example programs for a real integrated comparison:
+The current application assumes a simulated clock frequency of 100 MHz.
 
-Baseline:
+These values represent simulated processor execution, not the real time taken by the Java application.
+
+## 5. Integrating the Custom Instruction
+
+Member 2 will integrate the custom XWSUM instruction with the processor and its corresponding datapath visualisation.
+
+The instruction must be correctly decoded and executed by the processor. Its results must appear in the register display and be reflected in the performance metrics.
+
+The custom-instruction interface should follow the existing blue-and-white application styling.
+
+## 6. Baseline and Improved-Run Comparison
+
+The Performance tab already supports saving and comparing completed runs.
+
+For the final XWSUM demonstration, the baseline and improved programs must use equivalent initial inputs and produce matching intended outputs.
+
+**Baseline program:**
+
 ```asm
 ADDI x1, x0, 20
 ADDI x2, x0, 10
@@ -66,25 +95,77 @@ ADD x5, x5, x2
 ADD x3, x1, x5
 ```
 
-Improved:
+**Improved program:**
+
 ```asm
 ADDI x1, x0, 20
 ADDI x2, x0, 10
 XWSUM x3, x1, x2
 ```
 
-Both must finish with x3 = 50. The baseline's temporary x5 can differ. Count all cycles, including setup instructions and stalls. Do not hardcode the measured cycle counts or claim a guaranteed 3× whole-program speedup. XWSUM is proposed to take one EX cycle; document this modeling assumption when interpreting results.
+Both programs should produce `x3 = 50`.
 
-## Main window
+The comparison workflow must register each completed run with matching workload and input identifiers and the same selected intended outputs.
 
-`new MainWindow(editorPanel, processorPanel, customInstructionPanel, member3Panel)` assembles the components. Each argument is a Swing component; Member 1's processor panel can contain its register table, five-stage display and Step/Run/Reset controls. Member 2 supplies editor and custom-instruction panels. Call setVisible(true) on the completed window.
+Temporary registers such as `x5` should not be compared when their values are not part of the intended program result.
 
-MainWindow supplies layout, not execution logic. The real app/controller still connects the editor, parser and processor. The preview uses labelled placeholders so nobody confuses it with the completed group app.
+The measured speedup is calculated as:
 
-## Final packaging
+\[
+S = \frac{T_{\text{baseline}}}{T_{\text{improved}}}
+\]
 
-`java Build.java` produces a runnable JAR in dist. Currently its entry point is Member3Preview. Once the real app exists, update the MAIN_CLASS value and JAR filename in Build.java to the team's real launch class and chosen package name. Rebuild, run the actual assembly tests and try the JAR on a fresh teammate machine with Java 21.
+The application displays execution-time comparison bars after two valid completed runs are saved.
 
-A JAR is a Java executable package; it needs Java installed. A bundled-runtime installer is a separate packaging choice, if your doctor requires one. This preview package does not include a Windows/macOS installer.
+Actual speedup must be calculated from the processor's simulated execution results rather than hardcoded values.
 
-The existing shared files are unchanged. There is no new mandatory shared model definition.
+## 7. Build and Run
+
+From the project directory:
+
+**Run Member 3 tests:**
+
+```bash
+java Build.java test
+```
+
+**Build the application:**
+
+```bash
+java Build.java
+```
+
+**Launch the application:**
+
+```bash
+java Build.java run
+```
+
+The executable is generated at:
+
+`dist/RiscV-Visualiser.jar`
+
+The current launcher opens the combined tabbed application. Final team packaging should be verified again after Member 2's integration.
+
+## 8. Final Integration Checklist
+
+- [ ] Connect the assembly editor and parser.
+- [ ] Integrate XWSUM execution into the processor.
+- [ ] Connect the custom-instruction datapath visualisation.
+- [ ] Verify the custom instruction's register results.
+- [ ] Compare baseline and improved programs using matching inputs and intended outputs.
+- [ ] Confirm the measured execution-time bars display correctly.
+- [ ] Run all automated tests after integration.
+- [ ] Verify the final executable JAR launches the completed application.
+
+## 9. Current Verification
+
+The following tests have passed:
+
+- 1,105 Member 3 memory, performance, Amdahl, comparison, and Swing checks.
+- All 14 processor test groups.
+- All 7 processor UI test groups.
+
+Manual testing also verified LW/SW operations, memory highlighting, register updates, reset behavior, performance calculations, and a 1.000× comparison using two identical completed runs.
+
+The final XWSUM comparison remains pending integration.
