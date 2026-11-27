@@ -8,7 +8,7 @@ import javax.tools.ToolProvider;
 /** Run with Java 21: java Build.java [test|run]. No extra build tool is needed. */
 public class Build {
     private static final Path CLASSES = Path.of("build", "classes");
-    private static final Path JAR = Path.of("dist", "member3-preview.jar");
+    private static final Path JAR = Path.of("dist", "RiscV-Visualiser.jar");
 
     public static void main(String[] args) throws Exception {
         String action = args.length == 0 ? "build" : args[0];
@@ -29,7 +29,7 @@ public class Build {
         Files.createDirectories(JAR.getParent());
         Manifest manifest = new Manifest();
         manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-        manifest.getMainAttributes().put(Attributes.Name.MAIN_CLASS, "team.riscv.preview.Member3Preview");
+        manifest.getMainAttributes().put(Attributes.Name.MAIN_CLASS, "team.riscv.ui.CombinedApp");
         try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(JAR), manifest);
              var files = Files.walk(CLASSES)) {
             for (Path file : files.filter(Files::isRegularFile).sorted().toList()) {
@@ -40,7 +40,7 @@ public class Build {
                 jar.closeEntry();
             }
         }
-        System.out.println("Built " + JAR + " (Member 3 preview, not the final simulator)");
+        System.out.println("Built " + JAR);
         if (action.equals("test")) {
             Path tests = Path.of("build", "test-classes");
             Files.createDirectories(tests);
